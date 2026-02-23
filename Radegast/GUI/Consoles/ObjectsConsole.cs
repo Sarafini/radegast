@@ -432,12 +432,16 @@ namespace Radegast
             entry.SubItems.Add("Loading...");
             lstContents.Items.Add(entry);
 
-            Task contentsTask = Task.Run(() =>
+            Task contentsTask = Task.Run(async () =>
             {
                 lstContents.Tag = CurrentPrim;
-                List<InventoryBase> items =
-                    client.Inventory.GetTaskInventory(CurrentPrim.ID, CurrentPrim.LocalID, TimeSpan.FromSeconds(30));
-                lstContents.Invoke(new MethodInvoker(() => UpdateContentsList(items)));
+                using (var cts = new CancellationTokenSource())
+                {
+                    cts.CancelAfter(TimeSpan.FromSeconds(30));
+                    List<InventoryBase> items =
+                        await client.Inventory.GetTaskInventoryAsync(CurrentPrim.ID, CurrentPrim.LocalID, cts.Token).ConfigureAwait(false);
+                    lstContents.Invoke(new MethodInvoker(() => UpdateContentsList(items)));
+                }
             }, contentsDownloadCancelToken.Token);
         }
 
