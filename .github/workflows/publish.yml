@@ -45,19 +45,25 @@ jobs:
           echo "BUILD_VERSION=$buildVersion" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Restore NuGet packages
-        run: nuget restore radegast.sln
+        shell: pwsh
+        run: |
+          Write-Host "Restoring NuGet packages..."
+          nuget restore radegast.sln
 
       - name: Build solution
-        run: msbuild radegast.sln /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:Version=${{ env.BUILD_VERSION }}
+        shell: pwsh
+        run: |
+          Write-Host "Building Radegast for ${{ matrix.platform }}..."
+          msbuild radegast.sln /m /p:Configuration=ReleaseWindows /p:Platform=${{ matrix.platform }} /p:AssemblyVersion=${{ env.BUILD_VERSION }} /p:FileVersion=${{ env.BUILD_VERSION }} /p:InformationalVersion=${{ env.TAG_VERSION }} /v:minimal
 
       - name: Build installer
         shell: pwsh
         run: |
           Write-Host "Building MSI installer for ${{ matrix.platform }}"
-          msbuild Install\RadegastSetup\RadegastSetup.wixproj /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:Version=${{ env.TAG_VERSION }}
+          msbuild Install\RadegastSetup\RadegastSetup.wixproj /p:Configuration=ReleaseWindows /p:Platform=${{ matrix.platform }} /p:Version=${{ env.TAG_VERSION }}
 
           Write-Host "Building Bundle (bootstrapper) for ${{ matrix.platform }}"
-          msbuild Install\RadegastBundle\RadegastBundle.wixproj /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:Version=${{ env.TAG_VERSION }}
+          msbuild Install\RadegastBundle\RadegastBundle.wixproj /p:Configuration=ReleaseWindows /p:Platform=${{ matrix.platform }} /p:Version=${{ env.TAG_VERSION }}
 
       - name: Collect artifacts
         shell: pwsh
@@ -110,7 +116,7 @@ jobs:
       - name: Generate SBOM (Software Bill of Materials)
         uses: anchore/sbom-action@v0
         with:
-          path: ./bin/Release
+          path: ./bin/ReleaseWindows
           format: spdx-json
           output-file: artifacts/${{ matrix.platform }}/sbom.spdx.json
         continue-on-error: true
@@ -157,15 +163,15 @@ jobs:
             }
           }
 
-          # Check for tar.gz and symbols
-          $tarball = "artifacts\Radegast_${platform}_${version}.tar.gz"
+          # Check for tbz and symbols
+          $tarball = "artifacts\Radegast_${platform}_${version}.tbz"
           $symbols = "artifacts\Radegast_${platform}_${version}_symbols.zip"
 
           if (Test-Path $tarball) {
             $size = [math]::Round((Get-Item $tarball).Length / 1MB, 2)
-            Write-Host "  ✓ Radegast_${platform}_${version}.tar.gz ($size MB)"
+            Write-Host "  ✓ Radegast_${platform}_${version}.tbz ($size MB)"
           } else {
-            $missing += "Radegast_${platform}_${version}.tar.gz"
+            $missing += "Radegast_${platform}_${version}.tbz"
           }
 
           if (Test-Path $symbols) {
@@ -190,6 +196,11 @@ jobs:
             artifacts\Radegast_${{ matrix.platform }}_${{ env.TAG_VERSION }}.tar.gz
             artifacts\Radegast_${{ matrix.platform }}_${{ env.TAG_VERSION }}_symbols.zip
             artifacts\${{ matrix.platform }}\RadegastSetup_${{ matrix.platform }}_${{ env.TAG_VERSION }}.msi
+            artifacts\${{ matrix.platform }}\RadegastSetup_${{ matrix.platform }}_${{ env.TAG_VERSION }}.exe
+            artifacts\${{ matrix.platform }}\SHA256SUMS.txt
+            artifacts\${{ matrix.platform }}\appcast.json
+            artifacts\${{ matrix.platform }}\appcast.json.signature
+            artifacts\${{ matrix.platform }}\sbom.spdx.json
           if-no-files-found: warn
 
       - name: Verify symbol validity
@@ -449,9 +460,9 @@ jobs:
           - **RadegastSetup_ARM64_${version}.msi** - For Windows on ARM64
 
           ### Portable Archives
-          - **Radegast_x86_${version}.tar.gz** - 32-bit portable
-          - **Radegast_x64_${version}.tar.gz** - 64-bit portable  
-          - **Radegast_ARM64_${version}.tar.gz** - ARM64 portable
+          - **Radegast_x86_${version}.tbz** - 32-bit portable
+          - **Radegast_x64_${version}.tbz** - 64-bit portable  
+          - **Radegast_ARM64_${version}.tbz** - ARM64 portable
 
           ### Debug Symbols (for developers)
           - **Radegast_x86_${version}_symbols.zip**
@@ -489,9 +500,11 @@ jobs:
           tag_name: ${{ env.TAG }}
           body_path: release-notes.md
           files: |
+            release-files\*.exe
             release-files\*.msi
-            release-files\*.tar.gz
+            release-files\*.tbz
             release-files\*.zip
+            release-files\SHA256SUMS*.txt
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
