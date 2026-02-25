@@ -1,18 +1,14 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Fragment>
     <StandardDirectory Id="TARGETDIR">
-      <?if $(sys.BUILDARCH)=x64 or $(sys.BUILDARCH)=arm64?>
-        <!-- x64 merge modules (when available) -->
+      <?if $(var.Platform)=x64 or $(var.Platform)=arm64?>
+        <!-- x64 merge modules for 64-bit builds -->
         <!-- If x64 merge modules are not available, the build will fail with a clear error -->
         <!-- See Install\RadegastSetup\vcredist\README.md for instructions on obtaining x64 merge modules -->
         <Merge Id="VC_Redist120" SourceFile="vcredist\Microsoft_VC120_CRT_x64.msm" DiskId="1" Language="0" />
         <Merge Id="VC_Redist140" SourceFile="vcredist\Microsoft_VC140_CRT_x64.msm" DiskId="1" Language="0" />
-      <?elseif $(sys.BUILDARCH)=x86?>
-        <!-- x86 merge modules -->
-        <Merge Id="VC_Redist120" SourceFile="vcredist\Microsoft_VC120_CRT_x86.msm" DiskId="1" Language="0" />
-        <Merge Id="VC_Redist140" SourceFile="vcredist\Microsoft_VC140_CRT_x86.msm" DiskId="1" Language="0" />
       <?else?>
-        <!-- Fallback to x86 for unknown architectures -->
+        <!-- x86 merge modules for 32-bit builds (default) -->
         <Merge Id="VC_Redist120" SourceFile="vcredist\Microsoft_VC120_CRT_x86.msm" DiskId="1" Language="0" />
         <Merge Id="VC_Redist140" SourceFile="vcredist\Microsoft_VC140_CRT_x86.msm" DiskId="1" Language="0" />
       <?endif?>
